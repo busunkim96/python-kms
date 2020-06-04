@@ -21,7 +21,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, utils
 from google.cloud import kms
-from google.cloud.kms_v1.proto import resources_pb2
 import pytest
 
 from create_key_asymmetric_decrypt import create_key_asymmetric_decrypt
@@ -74,36 +73,36 @@ def location_id():
 
 @pytest.fixture(scope="module")
 def key_ring_id(client, project_id, location_id):
-    location_name = client.location_path(project_id, location_id)
+    location_name = f"projects/{project_id}/locations/{location_id}"
     key_ring_id = '{}'.format(uuid.uuid4())
-    key_ring = client.create_key_ring(location_name, key_ring_id, {})
+    key_ring = client.create_key_ring(request = {'parent': location_name, 'key_ring_id': key_ring_id, 'key_ring': {}})
 
     yield key_ring_id
 
-    for key in client.list_crypto_keys(key_ring.name):
+    for key in client.list_crypto_keys(request = {'parent': key_ring.name}):
         if key.rotation_period.seconds > 0 or key.next_rotation_time.seconds > 0:
             # https://github.com/googleapis/gapic-generator-python/issues/364
-            updated_key = resources_pb2.CryptoKey()
+            updated_key = kms.CryptoKey()
             updated_key.name = key.name
             update_mask = {'paths': ['rotation_period', 'next_rotation_time']}
-            client.update_crypto_key(updated_key, update_mask)
+            client.update_crypto_key(request = {'crypto_key': updated_key, 'update_mask': update_mask})
 
         f = 'state != DESTROYED AND state != DESTROY_SCHEDULED'
-        for version in client.list_crypto_key_versions(key.name, filter_=f):
-            client.destroy_crypto_key_version(version.name)
+        for version in client.list_crypto_key_versions(request = {'parent': key.name, 'page_size': f}):
+            client.destroy_crypto_key_version(request = {'name': version.name})
 
 
 @pytest.fixture(scope="module")
 def asymmetric_decrypt_key_id(client, project_id, location_id, key_ring_id):
     key_ring_name = client.key_ring_path(project_id, location_id, key_ring_id)
     key_id = '{}'.format(uuid.uuid4())
-    key = client.create_crypto_key(key_ring_name, key_id, {
-        'purpose': kms.enums.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_DECRYPT,
+    key = client.create_crypto_key(request = {'parent': key_ring_name, 'crypto_key_id': key_id, 'crypto_key': {
+        'purpose': kms.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_DECRYPT,
         'version_template': {
-            'algorithm': kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_DECRYPT_OAEP_2048_SHA256
+            'algorithm': kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_DECRYPT_OAEP_2048_SHA256
         },
         'labels': {'foo': 'bar', 'zip': 'zap'}
-    })
+    }})
     wait_for_ready(client, '{}/cryptoKeyVersions/1'.format(key.name))
     return key_id
 
@@ -112,13 +111,13 @@ def asymmetric_decrypt_key_id(client, project_id, location_id, key_ring_id):
 def asymmetric_sign_ec_key_id(client, project_id, location_id, key_ring_id):
     key_ring_name = client.key_ring_path(project_id, location_id, key_ring_id)
     key_id = '{}'.format(uuid.uuid4())
-    key = client.create_crypto_key(key_ring_name, key_id, {
-        'purpose': kms.enums.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_SIGN,
+    key = client.create_crypto_key(request = {'parent': key_ring_name, 'crypto_key_id': key_id, 'crypto_key': {
+        'purpose': kms.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_SIGN,
         'version_template': {
-            'algorithm': kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256
+            'algorithm': kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256
         },
         'labels': {'foo': 'bar', 'zip': 'zap'}
-    })
+    }})
     wait_for_ready(client, '{}/cryptoKeyVersions/1'.format(key.name))
     return key_id
 
@@ -127,13 +126,13 @@ def asymmetric_sign_ec_key_id(client, project_id, location_id, key_ring_id):
 def asymmetric_sign_rsa_key_id(client, project_id, location_id, key_ring_id):
     key_ring_name = client.key_ring_path(project_id, location_id, key_ring_id)
     key_id = '{}'.format(uuid.uuid4())
-    key = client.create_crypto_key(key_ring_name, key_id, {
-        'purpose': kms.enums.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_SIGN,
+    key = client.create_crypto_key(request = {'parent': key_ring_name, 'crypto_key_id': key_id, 'crypto_key': {
+        'purpose': kms.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_SIGN,
         'version_template': {
-            'algorithm': kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_SIGN_PKCS1_2048_SHA256
+            'algorithm': kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_SIGN_PKCS1_2048_SHA256
         },
         'labels': {'foo': 'bar', 'zip': 'zap'}
-    })
+    }})
     wait_for_ready(client, '{}/cryptoKeyVersions/1'.format(key.name))
     return key_id
 
@@ -142,14 +141,14 @@ def asymmetric_sign_rsa_key_id(client, project_id, location_id, key_ring_id):
 def hsm_key_id(client, project_id, location_id, key_ring_id):
     key_ring_name = client.key_ring_path(project_id, location_id, key_ring_id)
     key_id = '{}'.format(uuid.uuid4())
-    key = client.create_crypto_key(key_ring_name, key_id, {
-        'purpose': kms.enums.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT,
+    key = client.create_crypto_key(request = {'parent': key_ring_name, 'crypto_key_id': key_id, 'crypto_key': {
+        'purpose': kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT,
         'version_template': {
-            'algorithm': kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION,
-            'protection_level': kms.enums.ProtectionLevel.HSM
+            'algorithm': kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION,
+            'protection_level': kms.ProtectionLevel.HSM
         },
         'labels': {'foo': 'bar', 'zip': 'zap'}
-    })
+    }})
     wait_for_ready(client, '{}/cryptoKeyVersions/1'.format(key.name))
     return key_id
 
@@ -158,21 +157,21 @@ def hsm_key_id(client, project_id, location_id, key_ring_id):
 def symmetric_key_id(client, project_id, location_id, key_ring_id):
     key_ring_name = client.key_ring_path(project_id, location_id, key_ring_id)
     key_id = '{}'.format(uuid.uuid4())
-    key = client.create_crypto_key(key_ring_name, key_id, {
-        'purpose': kms.enums.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT,
+    key = client.create_crypto_key(request = {'parent': key_ring_name, 'crypto_key_id': key_id, 'crypto_key': {
+        'purpose': kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT,
         'version_template': {
-            'algorithm': kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
+            'algorithm': kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
         },
         'labels': {'foo': 'bar', 'zip': 'zap'}
-    })
+    }})
     wait_for_ready(client, '{}/cryptoKeyVersions/1'.format(key.name))
     return key_id
 
 
 def wait_for_ready(client, key_version_name):
     for i in range(5):
-        key_version = client.get_crypto_key_version(key_version_name)
-        if key_version.state == kms.enums.CryptoKeyVersion.CryptoKeyVersionState.ENABLED:
+        key_version = client.get_crypto_key_version(request = {'name': key_version_name})
+        if key_version.state == kms.CryptoKeyVersion.CryptoKeyVersionState.ENABLED:
             return
         time.sleep(0.1*(i**2))
     pytest.fail('{} not ready'.format(key_version_name))
@@ -181,30 +180,30 @@ def wait_for_ready(client, key_version_name):
 def test_create_key_asymmetric_decrypt(project_id, location_id, key_ring_id):
     key_id = '{}'.format(uuid.uuid4())
     key = create_key_asymmetric_decrypt(project_id, location_id, key_ring_id, key_id)
-    assert key.purpose == kms.enums.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_DECRYPT
-    assert key.version_template.algorithm == kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_DECRYPT_OAEP_2048_SHA256
+    assert key.purpose == kms.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_DECRYPT
+    assert key.version_template.algorithm == kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_DECRYPT_OAEP_2048_SHA256
 
 
 def test_create_key_asymmetric_sign(project_id, location_id, key_ring_id):
     key_id = '{}'.format(uuid.uuid4())
     key = create_key_asymmetric_sign(project_id, location_id, key_ring_id, key_id)
-    assert key.purpose == kms.enums.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_SIGN
-    assert key.version_template.algorithm == kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_SIGN_PKCS1_2048_SHA256
+    assert key.purpose == kms.CryptoKey.CryptoKeyPurpose.ASYMMETRIC_SIGN
+    assert key.version_template.algorithm == kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_SIGN_PKCS1_2048_SHA256
 
 
 def test_create_key_hsm(project_id, location_id, key_ring_id):
     key_id = '{}'.format(uuid.uuid4())
     key = create_key_hsm(project_id, location_id, key_ring_id, key_id)
-    assert key.purpose == kms.enums.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
-    assert key.version_template.algorithm == kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
-    assert key.version_template.protection_level == kms.enums.ProtectionLevel.HSM
+    assert key.purpose == kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
+    assert key.version_template.algorithm == kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
+    assert key.version_template.protection_level == kms.ProtectionLevel.HSM
 
 
 def test_create_key_labels(project_id, location_id, key_ring_id):
     key_id = '{}'.format(uuid.uuid4())
     key = create_key_labels(project_id, location_id, key_ring_id, key_id)
-    assert key.purpose == kms.enums.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
-    assert key.version_template.algorithm == kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
+    assert key.purpose == kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
+    assert key.version_template.algorithm == kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
     assert key.labels == {'team': 'alpha', 'cost_center': 'cc1234'}
 
 
@@ -224,8 +223,8 @@ def test_create_key_rotation_schedule(project_id, location_id, key_ring_id):
 def test_create_key_symmetric_encrypt_decrypt(project_id, location_id, key_ring_id):
     key_id = '{}'.format(uuid.uuid4())
     key = create_key_symmetric_encrypt_decrypt(project_id, location_id, key_ring_id, key_id)
-    assert key.purpose == kms.enums.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
-    assert key.version_template.algorithm == kms.enums.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
+    assert key.purpose == kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
+    assert key.version_template.algorithm == kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION
 
 
 def test_create_key_version(project_id, location_id, key_ring_id, symmetric_key_id):
@@ -237,7 +236,7 @@ def test_decrypt_asymmetric(client, project_id, location_id, key_ring_id, asymme
     message = 'my message'.encode('utf-8')
 
     key_version_name = client.crypto_key_version_path(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, '1')
-    public_key = client.get_public_key(key_version_name)
+    public_key = client.get_public_key(request = {'name': key_version_name})
 
     pem = public_key.pem.encode('utf-8')
     rsa_key = serialization.load_pem_public_key(pem, default_backend())
@@ -245,7 +244,7 @@ def test_decrypt_asymmetric(client, project_id, location_id, key_ring_id, asymme
     pad = padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
                        algorithm=hashes.SHA256(),
                        label=None)
-    ciphertext = rsa_key.encrypt(message, pad)
+    ciphertext = rsa_key.encrypt(request = {'name': message, 'plaintext': pad})
 
     response = decrypt_asymmetric(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, '1', ciphertext)
     assert response.plaintext == message
@@ -255,7 +254,7 @@ def test_decrypt_symmetric(client, project_id, location_id, key_ring_id, symmetr
     plaintext = 'my message'.encode('utf-8')
 
     key_version_name = client.crypto_key_path(project_id, location_id, key_ring_id, symmetric_key_id)
-    encrypt_response = client.encrypt(key_version_name, plaintext)
+    encrypt_response = client.encrypt(request = {'name': key_version_name, 'plaintext': plaintext})
     ciphertext = encrypt_response.ciphertext
 
     decrypt_response = decrypt_symmetric(project_id, location_id, key_ring_id, symmetric_key_id, ciphertext)
@@ -264,30 +263,30 @@ def test_decrypt_symmetric(client, project_id, location_id, key_ring_id, symmetr
 
 def test_destroy_restore_key_version(client, project_id, location_id, key_ring_id, asymmetric_decrypt_key_id):
     key_name = client.crypto_key_path(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id)
-    version = client.create_crypto_key_version(key_name, {})
+    version = client.create_crypto_key_version(request = {'parent': key_name, 'crypto_key_version': {}})
     version_id = version.name.split('/')[-1]
 
     wait_for_ready(client, version.name)
 
     destroyed_version = destroy_key_version(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, version_id)
-    assert destroyed_version.state == kms.enums.CryptoKeyVersion.CryptoKeyVersionState.DESTROY_SCHEDULED
+    assert destroyed_version.state == kms.CryptoKeyVersion.CryptoKeyVersionState.DESTROY_SCHEDULED
 
     restored_version = restore_key_version(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, version_id)
-    assert restored_version.state == kms.enums.CryptoKeyVersion.CryptoKeyVersionState.DISABLED
+    assert restored_version.state == kms.CryptoKeyVersion.CryptoKeyVersionState.DISABLED
 
 
 def test_disable_enable_key_version(client, project_id, location_id, key_ring_id, asymmetric_decrypt_key_id):
     key_name = client.crypto_key_path(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id)
-    version = client.create_crypto_key_version(key_name, {})
+    version = client.create_crypto_key_version(request = {'parent': key_name, 'crypto_key_version': {}})
     version_id = version.name.split('/')[-1]
 
     wait_for_ready(client, version.name)
 
     disabled_version = disable_key_version(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, version_id)
-    assert disabled_version.state == kms.enums.CryptoKeyVersion.CryptoKeyVersionState.DISABLED
+    assert disabled_version.state == kms.CryptoKeyVersion.CryptoKeyVersionState.DISABLED
 
     enabled_version = enable_key_version(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, version_id)
-    assert enabled_version.state == kms.enums.CryptoKeyVersion.CryptoKeyVersionState.ENABLED
+    assert enabled_version.state == kms.CryptoKeyVersion.CryptoKeyVersionState.ENABLED
 
 
 def test_encrypt_asymmetric(client, project_id, location_id, key_ring_id, asymmetric_decrypt_key_id):
@@ -295,7 +294,7 @@ def test_encrypt_asymmetric(client, project_id, location_id, key_ring_id, asymme
     ciphertext = encrypt_asymmetric(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, '1', plaintext)
 
     key_version_name = client.crypto_key_version_path(project_id, location_id, key_ring_id, asymmetric_decrypt_key_id, '1')
-    response = client.asymmetric_decrypt(key_version_name, ciphertext)
+    response = client.asymmetric_decrypt(request = {'name': key_version_name, 'ciphertext': ciphertext})
     assert response.plaintext == plaintext.encode('utf-8')
 
 
@@ -304,7 +303,7 @@ def test_encrypt_symmetric(client, project_id, location_id, key_ring_id, symmetr
     encrypt_response = encrypt_symmetric(project_id, location_id, key_ring_id, symmetric_key_id, plaintext)
 
     key_name = client.crypto_key_path(project_id, location_id, key_ring_id, symmetric_key_id)
-    decrypt_response = client.decrypt(key_name, encrypt_response.ciphertext)
+    decrypt_response = client.decrypt(request = {'name': key_name, 'ciphertext': encrypt_response.ciphertext})
     assert decrypt_response.plaintext == plaintext.encode('utf-8')
 
 
@@ -356,7 +355,7 @@ def test_sign_asymmetric(client, project_id, location_id, key_ring_id, asymmetri
     assert sign_response.signature
 
     key_version_name = client.crypto_key_version_path(project_id, location_id, key_ring_id, asymmetric_sign_rsa_key_id, '1')
-    public_key = client.get_public_key(key_version_name)
+    public_key = client.get_public_key(request = {'name': key_version_name})
     pem = public_key.pem.encode('utf-8')
     rsa_key = serialization.load_pem_public_key(pem, default_backend())
     hash_ = hashlib.sha256(message.encode('utf-8')).digest()
@@ -401,7 +400,7 @@ def test_verify_asymmetric_ec(client, project_id, location_id, key_ring_id, asym
 
     key_version_name = client.crypto_key_version_path(project_id, location_id, key_ring_id, asymmetric_sign_ec_key_id, '1')
     hash_ = hashlib.sha256(message.encode('utf-8')).digest()
-    sign_response = client.asymmetric_sign(key_version_name, {'sha256': hash_})
+    sign_response = client.asymmetric_sign(request = {'name': key_version_name, 'digest': {'sha256': hash_}})
 
     verified = verify_asymmetric_ec(project_id, location_id, key_ring_id, asymmetric_sign_ec_key_id, '1', message, sign_response.signature)
     assert verified
@@ -412,7 +411,7 @@ def test_verify_asymmetric_rsa(client, project_id, location_id, key_ring_id, asy
 
     key_version_name = client.crypto_key_version_path(project_id, location_id, key_ring_id, asymmetric_sign_rsa_key_id, '1')
     hash_ = hashlib.sha256(message.encode('utf-8')).digest()
-    sign_response = client.asymmetric_sign(key_version_name, {'sha256': hash_})
+    sign_response = client.asymmetric_sign(request = {'name': key_version_name, 'digest': {'sha256': hash_}})
 
     verified = verify_asymmetric_rsa(project_id, location_id, key_ring_id, asymmetric_sign_rsa_key_id, '1', message, sign_response.signature)
     assert verified

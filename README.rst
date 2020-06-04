@@ -57,6 +57,8 @@ Deprecated Python Versions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Python == 2.7. Python 2.7 support will be removed on January 1, 2020.
 
+The last version of this library compatible with Python 2.7 is google-cloud-kms==1.4.0.
+
 
 Mac/Linux
 ^^^^^^^^^

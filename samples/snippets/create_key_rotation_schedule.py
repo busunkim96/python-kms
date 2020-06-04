@@ -61,7 +61,7 @@ def create_key_rotation_schedule(project_id, location_id, key_ring_id, id):
     }
 
     # Call the API.
-    created_key = client.create_crypto_key(key_ring_name, id, key)
+    created_key = client.create_crypto_key(request = {'parent': key_ring_name, 'crypto_key_id': id, 'crypto_key': key})
     print('Created labeled key: {}'.format(created_key.name))
     return created_key
 # [END kms_create_key_rotation_schedule]

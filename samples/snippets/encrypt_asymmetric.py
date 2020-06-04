@@ -51,7 +51,7 @@ def encrypt_asymmetric(project_id, location_id, key_ring_id, key_id, version_id,
     key_version_name = client.crypto_key_version_path(project_id, location_id, key_ring_id, key_id, version_id)
 
     # Get the public key.
-    public_key = client.get_public_key(key_version_name)
+    public_key = client.get_public_key(request = {'name': key_version_name})
 
     # Extract and parse the public key as a PEM-encoded RSA key.
     pem = public_key.pem.encode('utf-8')
@@ -63,7 +63,7 @@ def encrypt_asymmetric(project_id, location_id, key_ring_id, key_id, version_id,
     pad = padding.OAEP(mgf=mgf, algorithm=sha256, label=None)
 
     # Encrypt the data using the public key.
-    ciphertext = rsa_key.encrypt(plaintext_bytes, pad)
+    ciphertext = rsa_key.encrypt(request = {'name': plaintext_bytes, 'plaintext': pad})
     print('Ciphertext: {}'.format(base64.b64encode(ciphertext)))
     return ciphertext
 # [END kms_encrypt_asymmetric]

@@ -56,7 +56,7 @@ def update_key_add_rotation(project_id, location_id, key_ring_id, key_id):
     update_mask = {'paths': ['rotation_period', 'next_rotation_time']}
 
     # Call the API.
-    updated_key = client.update_crypto_key(key, update_mask)
+    updated_key = client.update_crypto_key(request = {'crypto_key': key, 'update_mask': update_mask})
     print('Updated key: {}'.format(updated_key.name))
     return updated_key
 # [END kms_update_key_add_rotation_schedule]

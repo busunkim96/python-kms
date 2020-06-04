@@ -20,14 +20,16 @@ import os
 import setuptools
 
 name = "google-cloud-kms"
-description = "Cloud Key Management Service (KMS) API API client library"
+description = "Cloud Key Management Service (KMS) API client library"
 version = "1.4.0"
 release_status = "Development Status :: 5 - Production/Stable"
 dependencies = [
-    "google-api-core[grpc] >= 1.14.0, < 2.0.0dev",
-    "grpc-google-iam-v1 >= 0.12.3, < 0.13dev",
-    'enum34; python_version < "3.4"',
+    "google-api-core[grpc] >= 1.17.0, < 2.0.0dev",
+    "proto-plus >= 0.4.0",
+    "libcst >= 0.2.5",
 ]
+
+extras = {}
 
 package_root = os.path.abspath(os.path.dirname(__file__))
 
@@ -35,9 +37,14 @@ readme_filename = os.path.join(package_root, "README.rst")
 with io.open(readme_filename, encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
+# Only include packages under the 'google' namespace. Do not include tests,
+# benchmarks, etc.
 packages = [
-    package for package in setuptools.find_packages() if package.startswith("google")
+    package
+    for package in setuptools.PEP420PackageFinder.find()
+    if package.startswith("google")
 ]
+
 
 namespaces = ["google"]
 if "google.cloud" in packages:
@@ -57,8 +64,6 @@ setuptools.setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
@@ -70,7 +75,9 @@ setuptools.setup(
     packages=packages,
     namespace_packages=namespaces,
     install_requires=dependencies,
-    python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+    extras_require=extras,
+    python_requires=">=3.6",
+    scripts=["scripts/fixup_keywords.py"],
     include_package_data=True,
     zip_safe=False,
 )

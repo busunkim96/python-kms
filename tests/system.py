@@ -25,5 +25,5 @@ class TestKeyManagementServiceClient(object):
 
         client = kms_v1.KeyManagementServiceClient()
         location = "global"
-        parent = client.location_path(project_id, location)
+        parent = f'projects/{project_id}/locations/{location}'
         client.list_key_rings(parent)
